@@ -49,5 +49,79 @@ export const errorHandler=(err,req,res,next)=>{
     })
 }
 
+const buildAuthResponse=(user)=>({
+    _id:user._id ,
+    name:user.name,
+    email:user.email,
+    createdAt:user.createdAt 
+})
+
+export const signup=asyncHandler(async(req,res)=>{
+
+    const {name,email,password}=req.body ;
+
+    if(!name || !email || !password){
+        const err=new Error("name email and password are required");
+        err.statusCode=400 ;
+        throw err ;
+    }
+
+    const normalizedEmail=email.trim().toLowerCase() ;
+    const exisitingUser=await User.findOne({email:normalizedEmail}) 
+    if(exisitingUser){
+        const err=new Error('an account with this email already exists')
+        err.statusCode=400 ;
+        throw err ;
+    }
+   
+    const user=await User.create({
+        name:name.trim(),email:normalizedEmail,password 
+    })
+
+    const token=generateToken(user._id) ;
+
+    res.cookie("token",token,cookieOptions)
+
+    res.status(201).json({
+        success:true,
+        message:"account created successfully",
+        user:buildAuthResponse(user) 
+    })
+
+})
+
+export const login=asyncHandler(async(req,res)=>{
+
+    const {email,password}=req.body ;
+
+    if(!email || !password){
+        const err=new Error('email and password are required')
+        err.statusCode=400 ;
+        throw err ;
+    }
+
+    const normalizedEmail=email.trim().toLowerCase() ;
+    const user=await User.findOne({email:normalizedEmail}) ;
+
+    if(!user || !(await user.comparePassword(password))){
+        const err=new Error("invalid email or password")
+        err.statusCode=401 ;
+        throw err ;
+    }
+
+    const token=generateToken(user._id) ;
+    
+    res.cookie("token",token,cookieOptions) ;
+
+    res.json({
+        success:true,message:"logged in successfully",
+        message:"logged in successfully",
+        user:buildAuthResponse(user) 
+    })
+
+})
+
+
+
 
 export default asyncHanlder
